@@ -90,9 +90,170 @@ const store = new Vuex.Store({
   }
 })
 ```
+
+- 通过属性访问
+
 Getter 会暴露为 store.getters 对象，你可以以属性的形式访问这些值。
+
 ```
 store.getters.doneTodos  // -> [{ id: 1, text: '...', done: true }]
 ```
-**注意，getter 在通过属性访问时是作为 Vue 的响应式系统的一部分缓存其中的。**
 
+- 通过方法访问
+
+你也可以通过让 getter 返回一个函数，来实现给 getter 传参。在你对 store 里的数组进行查询时非常有用。
+
+```
+getters: {
+  // ...
+  getTodoById: (state) => (id) => {
+    return state.todos.find(todo => todo.id === id)
+  }
+}
+// ...
+store.getters.getTodoById(2)
+```
+
+**注意，getter在通过属性访问时是作为 Vue 的响应式系统的一部分缓存其中的。在通过方法访问时，每次都会去进行调用，而不会缓存结果。**
+
+## Mutations
+
+同步事件回调函数，每个 mutation 都有一个字符串的事件类型 (type) 和一个回调函数 (handler)。这个回调函数就是我们实际进行状态更改的地方，并且它会接受 state 作为第一个参数。
+
+```
+const store = new Vuex.Store({
+  state: {
+    count: 1
+  },
+  mutations: {
+    increment (state) {
+      // 变更状态
+      state.count++
+    }
+  }
+})
+
+store.commit('increment')
+```
+
+- 提交载荷
+
+```
+// ...
+mutations: {
+  increment (state, n) {
+    state.count += n
+  }
+}
+
+store.commit('increment', 10)
+```
+或者以对象方式提交
+```
+// ...
+mutations: {
+  increment (state, payload) {
+    state.count += payload.amount
+  }
+}
+
+store.commit('increment', {
+  amount: 10
+})
+```
+
+- 对象风格的提交方式
+
+```
+// ...
+mutations: {
+  increment (state, payload) {
+    state.count += payload.amount
+  }
+}
+
+store.commit({
+  type: 'increment',
+  amount: 10
+})
+```
+
+- 使用常量替代 Mutation 事件类型
+
+```js
+// mutation-types.js
+export const SOME_MUTATION = 'SOME_MUTATION'
+```
+
+```js
+// store.js
+import Vuex from 'vuex'
+import { SOME_MUTATION } from './mutation-types'
+
+const store = new Vuex.Store({
+  state: { ... },
+  mutations: {
+    // 我们可以使用 ES2015 风格的计算属性命名功能来使用一个常量作为函数名
+    [SOME_MUTATION] (state) {
+      // mutate state
+    }
+  }
+})
+```
+
+## Actions
+
+异步事件回调函数，action通常不直接更改状态，而是提交一个mutation。
+
+```
+const store = new Vuex.Store({
+  state: {
+    count: 0
+  },
+  mutations: {
+    increment (state) {
+      state.count++
+    }
+  },
+  actions: {
+    increment (context) {
+      context.commit('increment')
+    }
+  }
+})
+```
+
+Action 函数接受一个与 store 实例具有相同方法和属性的 context 对象，因此你可以调用 context.commit 提交一个 mutation，或者通过 context.state 和 context.getters 来获取 state 和 getters。
+
+实践中，我们会经常用到 ES2015 的 参数解构 来简化代码（特别是我们需要调用 commit 很多次的时候）：
+```
+actions: {
+  increment ({ commit }) {
+    commit('increment')
+  }
+}
+```
+
+- 分发Action
+
+Action通过 store.dispatch 方法触发：
+```js
+store.dispatch('increment') //此处调用异步的increment方法
+```
+
+Actions 支持同样的载荷方式和对象方式进行分发：
+
+```js
+// 以载荷形式分发
+store.dispatch('incrementAsync', {
+  amount: 10
+})
+
+// 以对象形式分发
+store.dispatch({
+  type: 'incrementAsync',
+  amount: 10
+})
+```
+
+## Modules
