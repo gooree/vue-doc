@@ -9,3 +9,5 @@
 - Vuex教程
 [点击此处查看教程](https://vuex.vuejs.org/zh/)
 
+- Vue-ls
+[点击此处查看教程](https://www.npmjs.com/package/vue-ls)
