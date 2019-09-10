@@ -11,3 +11,6 @@
 
 - Vue-ls
 [点击此处查看教程](https://www.npmjs.com/package/vue-ls)
+
+- Axios
+[点击此处查看教程](https://www.runoob.com/vue2/vuejs-ajax-axios.html)
