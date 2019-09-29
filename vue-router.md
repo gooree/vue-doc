@@ -11,7 +11,7 @@ Vue Router 是 Vue.js 官方的路由管理器，它的主要功能包含：
 - HTML5 历史模式或 hash 模式，在 IE9 中自动降级
 - 自定义的滚动条行为
 
-## 动态路由
+## 动态路由匹配
 
 - 路径参数
 路径参数使用冒号":"标记，当匹配到一个路由时，参数值会被设置到 this.$route.params，可以在每个组件内使用。可以在一个路由中设置多段路径参数。
@@ -194,4 +194,178 @@ next(error): (2.4.0+) 如果传入 next 的参数是一个 Error 实例，则导
 router.afterEach((to, from) => {
   // ...
 })
+```
+
+## 如何实现动态路由
+
+- 后端
+
+1. 数据库
+
+**后端资源表**
+| 列名   | 类型   | KEY  | 可否为空 | 注释   |
+| ---- | ---- | ---- | ---- | ---- |
+|id|bigint(20) unsigned|PRI|否|主键ID|
+|parent_id|bigint(20)||是|父资源ID|
+|res_name|varchar(100)||否|资源名称|
+|res_code|varchar(100)||否|资源代码|
+|res_desc|varchar(255)||是|资源描述|
+|res_type|char(10)||否|资源类型(0:菜单栏;1:其他)|
+|res_url|varchar(255)||是|资源链接|
+|res_icon|varchar(100)||是|资源图标|
+|order_no|int(2) unsigned||是|资源排序|
+|component|varchar(255)||是|组件路径|
+|redirect|varchar(255)||是|重定向|
+|keep_alive|char(1)||是|是否缓存|
+|title|varchar(255)||是|标题|
+|hidden|varchar(10)||是|是否隐藏|
+|status|char(1)||否|状态|
+|create_time|datetime||是|创建时间|
+|create_by|varchar(100)||是|创建人|
+|last_upd_time|datetime||是|最后更新时间|
+|last_upd_by|varchar(100)||是|最后更新人|
+|last_version|int(11) unsigned||是|最后版本|
+
+2. 后端接口
+
+后端接口可直接返回路由对象列表，不需要组装成嵌套的路由对象，组装过程由前端完成。
+
+```组件列表
+[
+  {
+    id: 1, 
+    parentId: null, 
+    resName: '系统管理', 
+    resCode: 'system', 
+    resUrl: '/system', 
+    component: 'PageView', 
+    redirect: '/system/user', 
+    title: '系统管理', 
+    keepAlive: false, 
+    hidden: false
+  },
+  ...
+]
+```
+
+- 前端
+
+1. 组装嵌套路由
+
+后端返回路由列表后，需要在前端进行动态组装，把列表转换为嵌套路由对象。
+
+```
+/*
+ * 格式化树形结构数据，从list列表转换为嵌套路由对象
+ * 
+ */
+const listToTree = (list, tree, parentId) => {
+  list.forEach(item => {
+    // 判断是否为父级菜单
+    if (item.parentId === parentId) {
+      const child = {
+        ...item,
+        key: item.id,
+        children: []
+      }
+      // 迭代 list， 找到当前菜单相符合的所有子菜单
+      listToTree(list, child.children, item.id)
+      // 删掉不存在 children 值的属性
+      if (child.children.length <= 0) {
+        delete child.children
+      }
+      // 加入到树中
+      tree.push(child)
+    }
+  })
+}
+
+/**
+ * 根据权限进行路由过滤
+ * @routerMap 路由列表
+ * @permissions 权限集合
+ */
+function filterRouter (routerMap, permissions) {
+  // filter函数，检测所有数组元素，并返回符合条件所有元素的数组
+  const accessedRouters = routerMap.filter(route => {
+    const component = constantRouterComponents[route.component]
+    component && (route.component = component)
+
+    if(!!!route.meta.icon) { //如果未定义icon值则删除该属性
+      delete route.meta.icon
+    } else {
+      route.meta.icon = (!!!icons[route.meta.icon]) ? route.meta.icon : icons[route.meta.icon]
+    }
+
+    const perm = route.meta.permission[0]
+    if(permissions.indexOf(perm) > -1) {
+      if (route.children && route.children.length) {
+        // 递归生成children数组
+        route.children = filterRouter(route.children, permissions)
+      }
+
+      return true
+    }
+    return false
+  })
+
+  return accessedRouters
+}
+```
+
+2. 挂载component组件
+
+在项目实践时，路由信息通常是通过调用后台接口从数据库加载而来的，这样可以结合登录用户的角色做访问路由权限控制。但需要注意的是在拼接动态路由时，配置属性component是一个js函数，而不是一个简单的字符串，此时可以采用如下两种解决方案：
+
+2.1 静态替换
+
+```
+const components = {
+  'system': () => import('@/layouts/PageView'),
+  'dict': () => import('@/views/system/DictList'),
+  'dictItem': () => import('@/views/system/DictItemList'),
+  'role': () => import('@/views/system/RoleList'),
+  'resource': () => import('@/views/system/ResourceList'),
+  'position': () => import('@/views/system/PositionList'),
+  'orgnization': () => import('@/views/system/OrgnizationList'),
+  'user': () => import('@/views/system/UserList')
+}
+
+function filterAsyncRouter (routerMap, roles) {
+  const accessedRouters = routerMap.filter(route => {
+
+    // 替换component
+    route.component = components[route.component]
+
+    if (hasPermission(roles.permissionList, route)) {
+      if (route.children && route.children.length) {
+        route.children = filterAsyncRouter(route.children, roles)
+      }
+      return true
+    }
+    return false
+  })
+  return accessedRouters
+}
+```
+
+2.2 动态加载
+
+```
+function filterAsyncRouter (routerMap, roles) {
+  const accessedRouters = routerMap.filter(route => {
+
+    // 注意只能导入自定义组件，通用组件可以通过方案1来替换
+    route.component = import(`@/views/${route.component}`)
+
+    if (hasPermission(roles.permissionList, route)) {
+      if (route.children && route.children.length) {
+        route.children = filterAsyncRouter(route.children, roles)
+      }
+      return true
+    }
+    return false
+  })
+  return accessedRouters
+}
 ```

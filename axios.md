@@ -277,21 +277,21 @@ instance.defaults.headers.common['Authorization'] = AUTH_TOKEN;
 ## Interceptors拦截器
 
 ```
-// Add a request interceptor
+// 请求拦截器
 axios.interceptors.request.use(function (config) {
-    // Do something before request is sent
+    // 可以在此处设置请求token
     return config;
   }, function (error) {
-    // Do something with request error
+    // 处理请求错误
     return Promise.reject(error);
   });
 
-// Add a response interceptor
+// 响应拦截器
 axios.interceptors.response.use(function (response) {
-    // Do something with response data
+    // 可以在此处处理token失效
     return response;
   }, function (error) {
-    // Do something with response error
+    // 处理请求错误
     return Promise.reject(error);
   });
 ```

@@ -5,7 +5,8 @@ Vue plugin for work with local storage, session storage and memory storage from 
 ## Usage
 ```
 import Storage from 'vue-ls';
- 
+
+// 配置项
 options = {
   namespace: 'vuejs__', // key prefix
   name: 'ls', // name variable Vue.[ls] or this.[$ls],
@@ -13,9 +14,6 @@ options = {
 };
  
 Vue.use(Storage, options);
- 
-//or
-//Vue.use(Storage);
  
 new Vue({
     el: '#app',
@@ -38,15 +36,15 @@ new Vue({
 });
 ```
 
-- Global
+- 全局引用
 
     Vue.ls
 
-- Context
+- 上下文引用
 
     this.$ls
 
-## API
+## API方法
 
 - Vue.ls.get(name, def)
 
